@@ -1,14 +1,30 @@
+var database = require("botbuilder-storage-firebase-database");
 const functions = require('firebase-functions');
+const admin = require('firebase-admin');
+
+var config = require("./conf")
+admin.initializeApp(
+    {
+        databaseURL: config.databaseURL
+    }
+);
+var db = admin.database();
+var ref = db.ref("botState");
+
+var client = new database.FireBaseBotStorage(ref, { refName: "botState" });
+
+
+
 const fetch = require('node-fetch');
 
 var botbuilder_linebot_connector_1 = require("botbuilder-linebot-connector");
+
 var builder = require('botbuilder');
 
 
-var config = require("./conf")
 console.log("config", config)
 var connector = new botbuilder_linebot_connector_1.LineConnector({
-    hasPushApi: false,
+    hasPushApi: true,
     autoGetUserProfile: false,
     // your line
     channelId: process.env.channelId || config.channelId,
@@ -17,15 +33,27 @@ var connector = new botbuilder_linebot_connector_1.LineConnector({
 });
 
 
-var bot = new builder.UniversalBot(connector);
-bot.dialog("/", [
-    s => {
-        s.send("hello")
-        s.send(new builder.Message(s).addAttachment(new botbuilder_linebot_connector_1.Sticker(s, 1, 2)))
+var bot = new builder.UniversalBot(connector).set("storage", client);
+
+bot.dialog("/", [s => {
+    s.send("hello");
+
+    s.beginDialog("greetings")
+}
+    , s => {
+        s.send("bady")
+    }
+
+])
+bot.dialog('greetings', [
+    // Step 1
+    function (session) {
+        session.send(new builder.Message(session).addAttachment(new botbuilder_linebot_connector_1.Sticker(session, 1, 2)))
+        builder.Prompts.text(session, 'Hi! What is your name?');
     },
-    s => {
-        s.send("bye")
-        s.send(new builder.Message(s).addAttachment(new botbuilder_linebot_connector_1.Sticker(s, 1, 3)))
+    // Step 2
+    function (session, results) {
+        session.endDialog(`Hello ${results.response}!`);
     }
 ]);
 
